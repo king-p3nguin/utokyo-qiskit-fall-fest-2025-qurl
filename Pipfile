@@ -3,10 +3,10 @@ url = "https://pypi.org/simple"
 verify_ssl = false
 name = "pip_conf_index_global"
 
-# [[source]]
-# url = "https://download.pytorch.org/whl/cu129"
-# verify_ssl = true
-# name = "downloadpytorch"
+[[source]]
+url = "https://download.pytorch.org/whl/cu129"
+verify_ssl = true
+name = "downloadpytorch"
 
 [packages]
 gymnasium = "*"
