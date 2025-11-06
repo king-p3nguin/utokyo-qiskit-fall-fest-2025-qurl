@@ -1,7 +1,8 @@
 import numpy as np
-import wandb
 from gymnasium import Env, spaces
 from qiskit.transpiler import CouplingMap
+
+import wandb
 
 from .circuit import *
 
@@ -195,7 +196,7 @@ class AILinearFunctionSynthesis(Env):
         print(qc)
         print(f"state:\n{self.state}")
         print(f"num_cnots: {self.num_cnots}")
-        return None
+        return qc
 
     def close(self):
         pass
