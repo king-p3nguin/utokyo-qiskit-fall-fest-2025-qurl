@@ -164,7 +164,9 @@ class AILinearFunctionSynthesis(Env):
         self.cnot_gates = []
 
         # save previous distance
-        # self.prev_distance = (self.state ^ np.eye(self.num_qubits, dtype=np.bool_)).sum()
+        self.prev_distance = (
+            self.state ^ np.eye(self.num_qubits, dtype=np.bool_)
+        ).sum()
 
         return self._get_obs(), {}
 
@@ -238,10 +240,10 @@ class AILinearFunctionSynthesisDenseReward(AILinearFunctionSynthesis):
 
         desired_goal = np.eye(self.num_qubits, dtype=np.bool_)
 
-        distance = (achieved_goal ^ desired_goal).sum() / self.num_qubits**2
+        distance = (achieved_goal ^ desired_goal).sum()
 
         # give large points if the goal is close
         reward -= distance
         # subtract points for each CNOT gate
-        reward -= self.num_cnots * 0.001
+        reward -= self.num_cnots * 0.01
         return reward
