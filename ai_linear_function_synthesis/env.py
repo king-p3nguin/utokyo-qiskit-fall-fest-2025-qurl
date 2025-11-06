@@ -136,7 +136,7 @@ class AILinearFunctionSynthesis(Env):
         # give large points if the goal is reached
         reward += 1 if distance == 0 else 0
         # subtract points for each CNOT gate
-        reward -= self.num_cnots * 0.01
+        reward -= self.num_cnots * 0.001
         return reward
 
     def reset(self, seed=None, options=None):
