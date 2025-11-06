@@ -240,10 +240,10 @@ class AILinearFunctionSynthesisDenseReward(AILinearFunctionSynthesis):
 
         desired_goal = np.eye(self.num_qubits, dtype=np.bool_)
 
-        distance = (achieved_goal ^ desired_goal).sum()
+        distance = (achieved_goal ^ desired_goal).sum() / self.num_qubits**2
 
         # give large points if the goal is close
         reward -= distance
         # subtract points for each CNOT gate
-        reward -= self.num_cnots * 0.01
+        reward -= self.num_cnots * 0.001
         return reward
