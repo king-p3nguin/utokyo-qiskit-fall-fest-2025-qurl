@@ -203,7 +203,7 @@ class AILinearFunctionSynthesis(Env):
         print(qc)
         print(f"state:\n{self.state}")
         print(f"num_cnots: {self.num_cnots}")
-        return None
+        return qc
 
     def close(self):
         pass
