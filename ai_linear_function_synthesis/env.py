@@ -1,9 +1,10 @@
 from copy import copy
 
 import numpy as np
-import wandb
 from gymnasium import Env, spaces
 from qiskit.transpiler import CouplingMap
+
+import wandb
 
 from .circuit import *
 
@@ -138,7 +139,7 @@ class AILinearFunctionSynthesis(Env):
         # give large points if the goal is reached
         reward += 1 if distance == 0 else 0
         # subtract points for each CNOT gate
-        reward -= self.num_cnots * 0.01
+        reward -= 0.01
         return reward
 
     def reset(self, seed=None, options=None):
@@ -163,9 +164,7 @@ class AILinearFunctionSynthesis(Env):
         self.cnot_gates = []
 
         # save previous distance
-        self.prev_distance = get_jaccard_distance(
-            self.state, np.eye(self.num_qubits, dtype=np.bool_)
-        )
+        self.prev_distance = 1.0
 
         return self._get_obs(), {}
 
@@ -235,17 +234,19 @@ class AILinearFunctionSynthesisDenseReward(AILinearFunctionSynthesis):
     """Environment with dense rewards for AI linear function synthesis"""
 
     def _compute_reward(self, achieved_goal: np.ndarray) -> np.float32:
-        # reward = 0
+        reward = 0
 
         desired_goal = np.eye(self.num_qubits, dtype=np.bool_)
 
-        distance = get_jaccard_distance(achieved_goal, desired_goal)
+        distance = (achieved_goal ^ desired_goal).sum()
+        # distance = get_jaccard_distance(achieved_goal, desired_goal)
 
         # give large points if the goal is close
-        reward = self.prev_distance - distance
+        reward -= distance
+        # reward = self.prev_distance - distance
         self.prev_distance = copy(distance)
         # subtract points for each CNOT gate
-        # reward -= self.num_cnots * 0.001
+        reward -= self.num_cnots * 0.001
         return reward
 
 
