@@ -1,7 +1,8 @@
 import numpy as np
-import wandb
 from gymnasium import Env, spaces
 from qiskit.transpiler import CouplingMap
+
+import wandb
 
 from .circuit import *
 
@@ -24,13 +25,17 @@ class AILinearFunctionSynthesis(Env):
         # track cnot counts while training
         self.num_cnots = 0
 
+        # track applied cnot gates
+        self.cnot_gates = []
+
         # qubit coupling map
         self.coupling_map = coupling_map
         # number of qubits
         self.num_qubits = coupling_map.size()
         for control, target in self.coupling_map:
             if (
-                not (0 <= control < self.num_qubits or 0 <= target < self.num_qubits)
+                not (0 <= control < self.num_qubits or 0 <=
+                     target < self.num_qubits)
             ) or (control == target):
                 raise ValueError(
                     f"Invalid qubit index {[control, target]}.0 "
@@ -54,7 +59,8 @@ class AILinearFunctionSynthesis(Env):
 
         # Select a pair of qubits from the coupling map as an action
         self.action_space = spaces.Discrete(len(self.coupling_map.get_edges()))
-        self.action_dict = {k: v for k, v in enumerate(self.coupling_map.get_edges())}
+        self.action_dict = {k: v for k, v in enumerate(
+            self.coupling_map.get_edges())}
         # observation space for observations given to the model
         self.observation_space = spaces.Box(
             low=0,
@@ -64,7 +70,8 @@ class AILinearFunctionSynthesis(Env):
         )
 
         # generate the identity matrix as the desired goal
-        self.desired_goal = np.eye(self.num_qubits, dtype=self.observation_space.dtype)
+        self.desired_goal = np.eye(
+            self.num_qubits, dtype=self.observation_space.dtype)
         self.desired_goal = self.desired_goal[np.newaxis, :, :]
 
         # maximum number of steps in an episode
@@ -133,11 +140,27 @@ class AILinearFunctionSynthesis(Env):
 
         distance = (achieved_goal ^ desired_goal).sum()
 
+        qc = self._make_quantum_circuit()
+
         # give large points if the goal is reached
-        reward += 1 if distance == 0 else 0
+        if distance == 0:
+            reward += 1
+        else:
+            reward -= distance / self.num_qubits**2 * 0.01
         # subtract points for each CNOT gate
-        reward -= self.num_cnots * 0.01
+        reward -= (self.num_cnots *
+                   (0.008 + 0.007*np.tanh(self.difficulty))) * 0.1 + qc.depth() * 0.002
+
         return reward
+
+    def _make_quantum_circuit(self) -> QuantumCircuit:
+        qc = QuantumCircuit(self.num_qubits)
+        try:
+            for control, target in self.cnot_gates:
+                qc.cx(control, target)
+        except:
+            pass
+        return qc
 
     def reset(self, seed=None, options=None):
         # raise difficulty level when success rate is high
@@ -147,6 +170,7 @@ class AILinearFunctionSynthesis(Env):
             wandb.log(
                 {
                     "CNOT count": self.num_cnots,
+                    "depth": self._make_quantum_circuit().depth()
                 }
             )
 
@@ -169,13 +193,9 @@ class AILinearFunctionSynthesis(Env):
 
         if self.total_count == self.eval_batch_size:
             success_rate = self.success_count / self.total_count
-            if self.difficulty is None:
-                pass
-            elif self.difficulty < self.max_steps:
+            if self.difficulty < self.max_steps:
                 if success_rate > self.success_rate_threshold:
                     self.difficulty += 1
-            else:
-                self.difficulty = None
             self.total_count = 0
             self.success_count = 0
 
@@ -238,4 +258,7 @@ class AILinearFunctionSynthesisDenseReward(AILinearFunctionSynthesis):
         reward -= distance
         # subtract points for each CNOT gate
         reward -= self.num_cnots * 0.01
+        return reward
+        return reward
+        return reward
         return reward
