@@ -133,25 +133,84 @@ class AILinearFunctionSynthesis(Env):
 
         return self._get_obs(), reward, terminated, truncated, info
 
+    # def _compute_reward(self, achieved_goal: np.ndarray) -> np.float32:
+    #     reward = 0
+
+    #     desired_goal = np.eye(self.num_qubits, dtype=np.bool_)
+
+    #     distance = (achieved_goal ^ desired_goal).sum()
+
+    #     qc = self._make_quantum_circuit()
+
+    #     # give large points if the goal is reached
+    #     if distance == 0:
+    #         reward += 1
+    #     else:
+    #         reward -= distance / self.num_qubits**2 * 0.01
+    #     # subtract points for each CNOT gate
+    #     self.difficulty = 0 if self.difficulty is None else self.difficulty
+    #     reward -= (self.num_cnots *
+    #                (0.008 + 0.007*np.tanh(self.difficulty))) * 0.1 + qc.depth() * 0.002
+
+    #     return reward
     def _compute_reward(self, achieved_goal: np.ndarray) -> np.float32:
-        reward = 0
+        """
+        ポテンシャルベースの多目的ハイブリッド報酬関数（PB-MHRF）に基づいて報酬を計算します。
 
-        desired_goal = np.eye(self.num_qubits, dtype=np.bool_)
+        この関数は、エージェントが「行動（CNOT適用）」を終え、
+        状態が s (直前の状態) から s' (achieved_goal) に遷移した直後に呼び出されることを想定しています。
 
-        distance = (achieved_goal ^ desired_goal).sum()
+        R_total = R_base + R_shaping
+        """
 
-        qc = self._make_quantum_circuit()
+        # --- 1. ポテンシャル関数 Phi(s) と Phi(s') の計算 ---
 
-        # give large points if the goal is reached
-        if distance == 0:
-            reward += 1
-        else:
-            reward -= distance / self.num_qubits**2 * 0.01
-        # subtract points for each CNOT gate
-        reward -= (self.num_cnots *
-                   (0.008 + 0.007*np.tanh(self.difficulty))) * 0.1 + qc.depth() * 0.002
+        # Phi(s) = -W * HammingDistance(s, goal)
+        # ゴール（距離0）でポテンシャルが最大値 0 になるように設計します。
 
-        return reward
+        # 現在の状態 s' (achieved_goal) のハミング距離とポテンシャルを計算
+        current_distance = (achieved_goal ^ self.desired_goal).sum()
+        potential_s_prime = - 0.1 * current_distance / self.num_qubits**2
+
+        # 直前の状態 s のポテンシャルを取得 (self.previous_distance は前のステップで保存済)
+        potential_s = - 0.1 * self.previous_distance / self.num_qubits**2
+
+        # --- 2. 整形報酬 R_shaping の計算 (PBRS) ---
+
+        # R_shaping = gamma * Phi(s') - Phi(s)
+        #
+        # もしゴールに近づいた場合 (current_distance < self.previous_distance):
+        #   -> potential_s_prime > potential_s
+        #   -> R_shaping は「正の報酬」となり、学習をガイドします。
+        #
+        # もしゴールから遠ざかった場合 (current_distance > self.previous_distance):
+        #   -> potential_s_prime < potential_s
+        #   -> R_shaping は「負の報酬（罰）」となり、その行動を抑制します。
+        #
+        shaping_reward = (0.99 * potential_s_prime) - potential_s
+
+        # --- 3. 基本報酬 R_base の計算 ---
+
+        # R_base = R_sparse + R_step_cost
+        # R_base は「真の目的」（正しく、かつ最小ステップで）を定義します。
+
+        # R_sparse (終端報酬): 「正しさ」の報酬
+        # ゴールに到達した場合のみ与えられます。
+        sparse_reward = 1.0 if current_distance == 0 else 0.0
+
+        # R_step_cost (ステップコスト): 「効率性」のペナルティ
+        # この関数が呼ばれた＝1回CNOTを実行した、と仮定し、コストを課します。
+        # これが累積することで、エージェントは総CNOT数を最小化しようとします。
+        step_cost = - 0.01
+
+        # --- 4. 総報酬の計算 ---
+        total_reward = (sparse_reward + step_cost) + shaping_reward
+
+        # --- 5. 次のステップのための状態更新 ---
+        # 現在の距離を「直前の距離」として保存します。
+        self.previous_distance = current_distance
+
+        return np.float32(total_reward)
 
     def _make_quantum_circuit(self) -> QuantumCircuit:
         qc = QuantumCircuit(self.num_qubits)
@@ -184,6 +243,10 @@ class AILinearFunctionSynthesis(Env):
         self.num_cnots = 0
         self.cnot_gates = []
 
+        # 直前のステップのハミング距離を保持する変数
+        # reset()時に、初期状態の距離で初期化する必要があります
+        self.previous_distance = (self.state ^ self.desired_goal).sum()
+
         return self._get_obs(), {}
 
     def _update_difficulty(self):
@@ -215,7 +278,7 @@ class AILinearFunctionSynthesis(Env):
         print(qc)
         print(f"state:\n{self.state}")
         print(f"num_cnots: {self.num_cnots}")
-        return None
+        return qc
 
     def close(self):
         pass
