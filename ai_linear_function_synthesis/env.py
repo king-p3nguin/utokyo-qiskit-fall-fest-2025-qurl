@@ -164,7 +164,9 @@ class AILinearFunctionSynthesis(Env):
         self.cnot_gates = []
 
         # save previous distance
-        self.prev_distance = 1.0
+        self.prev_distance = (
+            self.state ^ np.eye(self.num_qubits, dtype=np.bool_)
+        ).sum()
 
         return self._get_obs(), {}
 
@@ -238,30 +240,10 @@ class AILinearFunctionSynthesisDenseReward(AILinearFunctionSynthesis):
 
         desired_goal = np.eye(self.num_qubits, dtype=np.bool_)
 
-        distance = (achieved_goal ^ desired_goal).sum()
-        # distance = get_jaccard_distance(achieved_goal, desired_goal)
+        distance = (achieved_goal ^ desired_goal).sum() / self.num_qubits**2
 
         # give large points if the goal is close
         reward -= distance
-        # reward = self.prev_distance - distance
-        self.prev_distance = copy(distance)
         # subtract points for each CNOT gate
         reward -= self.num_cnots * 0.001
         return reward
-
-
-def get_jaccard_distance(mat1: np.ndarray, mat2: np.ndarray) -> float:
-    """Compute the Jaccard distance between two binary matrices.
-
-    Args:
-        mat1: First binary matrix.
-        mat2: Second binary matrix.
-
-    Returns:
-        Jaccard distance between the two matrices.
-    """
-    intersection = np.logical_and(mat1, mat2).sum()
-    union = np.logical_or(mat1, mat2).sum()
-    if union == 0:
-        return 0.0
-    return 1.0 - intersection / union
