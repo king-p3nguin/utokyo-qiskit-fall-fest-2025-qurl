@@ -16,7 +16,7 @@ pytest = "*"
 wandb = "*"
 stable-baselines3 = {extras = ["extra"], version = "*"}
 ipywidgets = "*"
-qiskit = "*"
+qiskit = {extras = ["visualization"], version = "*"}
 qiskit-aer = "*"
 
 [dev-packages]
