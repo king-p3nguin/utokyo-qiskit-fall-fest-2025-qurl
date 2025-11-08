@@ -2,7 +2,6 @@
 url = "https://pypi.org/simple"
 verify_ssl = false
 name = "pip_conf_index_global"
-
 # [[source]]
 # url = "https://download.pytorch.org/whl/cu129"
 # verify_ssl = true
@@ -10,7 +9,6 @@ name = "pip_conf_index_global"
 
 [packages]
 gymnasium = "*"
-qiskit = {extras = ["visualization"], version = "*"}
 torch = ">=2.0.0, !=2.0.1, !=2.1.0"
 torchvision = "*"
 ipykernel = "*"
@@ -18,6 +16,7 @@ pytest = "*"
 wandb = "*"
 stable-baselines3 = {extras = ["extra"], version = "*"}
 ipywidgets = "*"
+qiskit = {extras = ["visualization"], version = "*"}
+qiskit-aer = "*"
 
 [dev-packages]
-
